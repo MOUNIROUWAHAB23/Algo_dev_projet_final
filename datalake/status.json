@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-03-28T22:40:38.043142",
+  "status": "initialized",
+  "version": "1.0",
+  "structure": {
+    "root": "C:\\Users\\HP\\OneDrive\\Desktop\\master_engeneering\\Bmad\\Algo_dev_rendu\\datalake",
+    "non_traitees": "C:\\Users\\HP\\OneDrive\\Desktop\\master_engeneering\\Bmad\\Algo_dev_rendu\\datalake\\fichiers_non_traites",
+    "traites": "C:\\Users\\HP\\OneDrive\\Desktop\\master_engeneering\\Bmad\\Algo_dev_rendu\\datalake\\fichiers_traites",
+    "archives": "C:\\Users\\HP\\OneDrive\\Desktop\\master_engeneering\\Bmad\\Algo_dev_rendu\\datalake\\archives"
+  },
+  "stats": {
+    "fichiers_non_traites": 0,
+    "fichiers_traites": 0,
+    "archives": 0
+  }
+}
