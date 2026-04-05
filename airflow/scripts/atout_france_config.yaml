@@ -1,0 +1,24 @@
+source:
+  name: "ATOUT FRANCE"
+  url: "https://data.classement.atout-france.fr/static/exportHebergementsClasses/hebergements_classes.csv"
+  update_time_utc: "04:00"
+
+storage:
+  raw_zone: "/opt/airflow/datalake/fichiers_non_traites/"
+  filename_pattern: "hebergements_atoutfrance_{date}.csv"
+
+validation:
+  min_records: 10000
+  expected_columns:
+    - "Date de classement"
+    - "Typologie d'établissement"
+    - "Classement"
+    - "Nom de l'établissement"
+    - "Adresse"
+    - "Code postal"
+    - "Commune"
+    # Note: On peut lister les 20 champs ici pour la validation stricte
+
+execution:
+  timeout_seconds: 300
+  retries: 3

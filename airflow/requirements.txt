@@ -8,8 +8,14 @@ requests==2.31.0
 # Parsing CSV et data processing
 pandas==2.1.4
 
-# MongoDB
+# MongoDB (Base Opérationnelle / NoSQL)
 pymongo==4.6.1
+
+# PostgreSQL (Data Warehouse Analytique)
+psycopg2-binary==2.9.9
+
+# Tests Qualité (Data Quality Checks)
+pytest==8.0.0
 
 # Utilities
 python-dotenv==1.0.0
@@ -20,3 +26,4 @@ python-dateutil==2.8.2
 # Airflow providers
 apache-airflow-providers-http==4.9.0
 apache-airflow-providers-mongo==3.5.0
+apache-airflow-providers-postgres==5.10.0

@@ -1,129 +1,166 @@
-# ============================================
-# Script - Géocodage des adresses
-# ============================================
-
-import requests
+import os
+import sys
 import time
-from datetime import datetime
+import json
+import logging
+import threading
+import requests
+import psycopg2 # Pense à vérifier que psycopg2-binary est installé
+import concurrent.futures
+from datetime import datetime, timezone
+from pymongo import MongoClient, UpdateOne
+from dotenv import load_dotenv
 
-# API Nominatim (OpenStreetMap) - Gratuit, pas de clé requise
-NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
+# ============================================
+# Configuration Logging
+# ============================================
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "message": record.getMessage()
+        }
+        if hasattr(record, 'extra_data'):
+            log_record.update(record.extra_data)
+        return json.dumps(log_record)
 
-# Rate limiting: 1 requête/seconde max (requis par Nominatim)
-RATE_LIMIT_DELAY = 1.0
+logger = logging.getLogger("Geocoding_Sync")
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+ch.setFormatter(JSONFormatter())
+logger.addHandler(ch)
 
+BAN_API_URL = "https://api-adresse.data.gouv.fr/search/"
+thread_local = threading.local()
 
-def geocode_address(adresse, code_postal, commune, departement):
-    """Géocode une adresse unique via Nominatim"""
+# ============================================
+# Utilitaires de Connexion
+# ============================================
+def get_http_session():
+    if not hasattr(thread_local, "session"):
+        thread_local.session = requests.Session()
+    return thread_local.session
 
-    # Construire la requête
-    query = f"{adresse or ''} {code_postal} {commune}, France".strip()
+def get_pg_connection(pg_uri):
+    """Gère une connexion Postgres par thread pour la performance"""
+    if not hasattr(thread_local, "pg_conn") or thread_local.pg_conn.closed:
+        thread_local.pg_conn = psycopg2.connect(pg_uri)
+        thread_local.pg_conn.autocommit = True
+    return thread_local.pg_conn
 
-    params = {
-        'q': query,
-        'format': 'json',
-        'limit': 1,
-        'addressdetails': 1,
-    }
-
-    headers = {
-        'User-Agent': 'TourismePlateforme/1.0 (contact@example.com)'
-    }
+# ============================================
+# Logique Métier
+# ============================================
+def geocode_ban(adresse, code_postal, commune):
+    addr = "" if adresse in ["None", None] else str(adresse)
+    cp = "" if code_postal in ["None", None] else str(code_postal)
+    com = "" if commune in ["None", None] else str(commune)
+    
+    session = get_http_session()
+    query = f"{addr} {cp} {com}".strip()
+    if not query: return None
 
     try:
-        response = requests.get(NOMINATIM_URL, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
-
-        results = response.json()
-
-        if results:
-            return {
-                'latitude': float(results[0]['lat']),
-                'longitude': float(results[0]['lon']),
-                'status': 'success'
-            }
-        else:
-            # Essayer avec commune + departement uniquement
-            query_fallback = f"{commune} {departement}, France"
-
-            params['q'] = query_fallback
-            response = requests.get(NOMINATIM_URL, params=params, headers=headers, timeout=10)
-            results = response.json()
-
-            if results:
+        response = session.get(BAN_API_URL, params={'q': query, 'limit': 1}, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data['features']:
+                feat = data['features'][0]
                 return {
-                    'latitude': float(results[0]['lat']),
-                    'longitude': float(results[0]['lon']),
-                    'status': 'partial'
+                    "lon": feat['geometry']['coordinates'][0],
+                    "lat": feat['geometry']['coordinates'][1],
+                    "region": feat['properties'].get('context', '').split(',')[-1].strip()
                 }
-
-            return {'latitude': None, 'longitude': None, 'status': 'failed'}
-
     except Exception as e:
-        print(f"  Erreur géocodage: {str(e)}")
-        return {'latitude': None, 'longitude': None, 'status': 'error'}
+        logger.debug(f"Erreur API BAN: {e}")
+    return None
+
+def process_single_doc(doc, pg_uri):
+    """Géocode et prépare les infos pour Mongo et Postgres"""
+    loc = doc.get("localisation", {})
+    cp = loc.get("code_postal")
+    com = loc.get("commune")
+    
+    res = geocode_ban(loc.get("adresse"), cp, com)
+    
+    if res:
+        # 1. Update PostgreSQL (Double écriture)
+        try:
+            conn = get_pg_connection(pg_uri)
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE dim_localisation 
+                    SET latitude = %s, longitude = %s, region = %s
+                    WHERE code_postal = %s AND commune = %s
+                """, (res['lat'], res['lon'], res['region'], cp, com))
+        except Exception as e:
+            logger.error(f"Erreur Update Postgres: {e}")
+
+        return doc["_id"], res
+    return doc["_id"], None
 
 
-def geocode_all_addresses(normalized_data):
-    """Géocode toutes les adresses"""
+# Pipeline Principal
 
-    print(f"\n{'='*60}")
-    print(f"Démarrage du géocodage - {datetime.now().isoformat()}")
-    print(f"{'='*60}\n")
+def process_geocoding(mongo_uri, pg_uri, db_name="algo_db"):
+    logger.info("Démarrage de la Synchronisation Mongo <-> Postgres")
+    start_time = time.time()
+    
+    m_client = MongoClient(mongo_uri)
+    m_db = m_client[db_name]
+    collection = m_db["hebergements"]
+    
+    query = {"localisation.coordinates": None}
+    cursor = list(collection.find(query).limit(2000)) # On en prend 2000 pour  démo
+    total = len(cursor)
+    
+    if total == 0:
+        logger.info("Tout est déjà synchronisé. Fin du script.")
+        return True
 
-    geocoded_data = {}
-    total_geocoded = 0
-    total_failed = 0
+    logger.info(f"{total} hôtels à synchroniser.")
+    
+    mongo_ops = []
+    processed = 0
 
-    for source_type, records in normalized_data.items():
-        print(f"Géocodage de {source_type} ({len(records)} enregistrements)...")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_doc = {executor.submit(process_single_doc, d, pg_uri): d for d in cursor}
+        
+        for future in concurrent.futures.as_completed(future_to_doc):
+            doc_id, res = future.result()
+            processed += 1
+            
+            if res:
+                # Préparation du lot pour MongoDB
+                geojson = {"type": "Point", "coordinates": [res['lon'], res['lat']]}
+                mongo_ops.append(UpdateOne(
+                    {"_id": doc_id}, 
+                    {"$set": {
+                        "localisation.coordinates": geojson,
+                        "localisation.region": res['region']
+                    }}
+                ))
 
-        geocoded_records = []
+            if len(mongo_ops) >= 100:
+                collection.bulk_write(mongo_ops, ordered=False)
+                mongo_ops = []
+                logger.info(f"Progression : {processed}/{total} synchronisés...")
 
-        for i, record in enumerate(records):
-            # Rate limiting
-            if i % 10 == 0:
-                print(f"  Progress: {i}/{len(records)}")
+    if mongo_ops:
+        collection.bulk_write(mongo_ops, ordered=False)
+        
+    logger.info(f"Terminé en {round(time.time()-start_time, 2)}s.")
+    return True
 
-            result = geocode_address(
-                record.get('adresse'),
-                record.get('codePostal'),
-                record.get('commune'),
-                record.get('departement')
-            )
-
-            record['latitude'] = result['latitude']
-            record['longitude'] = result['longitude']
-            record['geocoding_status'] = result['status']
-
-            geocoded_records.append(record)
-
-            if result['status'] == 'success':
-                total_geocoded += 1
-            else:
-                total_failed += 1
-
-            # Respecter le rate limiting
-            time.sleep(RATE_LIMIT_DELAY)
-
-        geocoded_data[source_type] = geocoded_records
-
-        success_rate = sum(1 for r in geocoded_records if r['geocoding_status'] == 'success')
-        print(f"  ✓ Taux de succès: {success_rate}/{len(records)} ({success_rate*100/len(records):.1f}%)")
-
-    # Résumé
-    print(f"\n{'='*60}")
-    print(f"RÉSUMÉ DU GÉOCODAGE")
-    print(f"{'='*60}")
-    print(f"  Adresses géocodées: {total_geocoded}")
-    print(f"  Échecs: {total_failed}")
-    print(f"  Taux de succès: {total_geocoded*100/(total_geocoded+total_failed):.1f}%")
-    print(f"{'='*60}\n")
-
-    return geocoded_data
-
-
-if __name__ == '__main__':
-    # Test avec une adresse
-    test = geocode_address('1 Rue de la Paix', '75001', 'Paris', 'Paris')
-    print(f"Résultat: {test}")
+if __name__ == "__main__":
+    load_dotenv()
+    M_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017/")
+    
+    P_URI = os.getenv("POSTGRES_URI", "postgresql://dwh_user:dwh_password@postgres-dwh:5432/algo_db")
+    
+    try:
+        process_geocoding(M_URI, P_URI)
+    except Exception as e:
+        logger.error(f"Erreur Fatale: {e}")
+        sys.exit(1)
