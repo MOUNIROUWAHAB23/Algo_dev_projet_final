@@ -184,7 +184,7 @@ services:
 
 
 
-  # ==================== METABASE (BI/Analytics) ====================
+  # ==================== METABASE ou POwerBI (BI/Analytics) ====================
   metabase:
     image: metabase/metabase:latest
     container_name: tourisme-metabase
