@@ -18,35 +18,7 @@ app.use(cors());
 
 app.use(express.json());
 mongoose.connect(process.env.MONGO_URI)
-app.post('/sign-up',auth)
-app.post('/sign-in', async (req, res) => {
-    const userdata = req.body;
-    const email = userdata?.email;
-    const password = userdata?.password;
-
-    console.log(email);
-    let data = await userModel.findOne({ 'email': email }, 'password').exec();
-    console.log(data)
-    if (data) {
-        if (await bcrypt.compare(password, data.password)) {
-            return res.status(200).json({
-                "code": "200",
-                "message": "tout se passe bien"
-            })
-        }
-        return res.status(400).json({
-            "code": "400",
-            "message": "Invalid paswword"
-        })
-
-    }
-
-    return res.status(400).json({
-        "code": "400",
-        "message": "Invalid email"
-    })
-
-})
+app.use('/api/auth/',auth)
 
 const PORT = process.env.PORT || 3500;
 
