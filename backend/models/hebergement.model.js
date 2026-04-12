@@ -110,7 +110,7 @@ const HebergementSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['HOTEL', 'APPARTEMENT', 'MAISON', 'AUTRE']
+    enum: ["HOTEL", "CAMPING", "RESIDENCE", "AUBERGE", "VILLAGE"]
   }
 
 }, {
