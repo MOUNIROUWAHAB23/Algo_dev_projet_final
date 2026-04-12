@@ -3,12 +3,23 @@ import hebergementModel from "../models/hebergement.model.js";
 
 export async function getHebergement(req, res) {
     try {
-        const limit = await req.query?.limit || 10;
+        const limit = await req.query?.limit || 20;
         const page = await req.query?.page || 1;
         const offset = (page - 1) * limit;
         const q = await req.query?.q;
-        let type = await req.query?.type;
+        const type = await req.query?.type?.toUpperCase();
+        const region = await req.query?.region;
+        const classification = await req.query?.classification;
+        const lat = await req.query?.lat;
+        const long = await req.query?.long;
+        const radius = await req.query?.radius;
         const filter = {}
+        if (limit>100){
+            return res.status(400).json({
+                    "code": "400",
+                    "message": "Bad limit is greater than 100"
+                })
+        }
         if (q) {
             filter.$or = [
                 { nom: { $regex: q, $options: 'i' } },
@@ -18,7 +29,6 @@ export async function getHebergement(req, res) {
             ]
         }
         if (type) {
-            type = type.toUpperCase()
             if (!["HOTEL", "CAMPING", "RESIDENCE", "AUBERGE", "VILLAGE"].includes(type)) {
                 return res.status(400).json({
                     "code": "400",
@@ -27,6 +37,29 @@ export async function getHebergement(req, res) {
             };
             filter.type = type;
         }
+        if (region) {
+            filter["localisation.region"] = { $regex: region, $options: "i" };
+        }
+        if (classification) {
+            filter.classification = classification;
+        }
+        if (lat, long, radius) {
+            console.log("lat:", lat);
+            console.log("long:", long);
+            console.log("radius:", radius);
+            console.log("parsed:", parseFloat(lat), parseFloat(long), parseInt(radius));
+            filter["localisation.coordinates"] = {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [parseFloat(long), parseFloat(lat)]
+                    },
+                    $maxDistance: radius * 1000
+
+                }
+            };
+        }
+
 
         const data = await hebergementModel.find(filter).skip(offset).limit(limit).exec();
         if (!data) {
