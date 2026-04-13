@@ -1,163 +1,81 @@
-import { useState, useEffect } from 'react'
+// SRP : Page gère uniquement l'affichage des détails
+import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import { Heart, Share2, Phone, Mail, Globe, Star, MapPin } from 'lucide-react'
-import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
+import { hebergementService } from '../services/hebergement.service'
+import { useHebergementDetail } from '../hooks/useHebergementDetail'
+import LocationSection from '../components/hebergement/LocationSection'
+import CapacitySection from '../components/hebergement/CapacitySection'
+import AmenitiesSection from '../components/hebergement/AmenitiesSection'
+import ContactSection from '../components/hebergement/ContactSection'
+import MetadataSection from '../components/hebergement/MetadataSection'
 
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
-
-export default function AccommodationPage() {
+const AccommodationPage = () => {
   const { id } = useParams()
-  const [hebergement, setHebergement] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [isFavorite, setIsFavorite] = useState(false)
-
-  useEffect(() => {
-    const fetchHebergement = async () => {
-      try {
-        const response = await fetch(`/api/hebergements/${id}`)
-        const data = await response.json()
-        setHebergement(data)
-      } catch (error) {
-        console.error('Erreur:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchHebergement()
-  }, [id])
+  const { hebergement, loading, error } = useHebergementDetail(id)
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     )
   }
 
-  if (!hebergement) {
+  if (error || !hebergement) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center text-gray-600">
-        Hébergement non trouvé
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            {error || 'Hébergement non trouvé'}
+          </h2>
+          <Link to="/" className="text-primary hover:underline">
+            ← Retour aux résultats
+          </Link>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{hebergement.nom}</h1>
-            <div className="flex items-center gap-2 text-gray-600">
-              <MapPin className="w-5 h-5" />
-              <span>{hebergement.adresse}, {hebergement.codePostal} {hebergement.commune}</span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsFavorite(!isFavorite)}
-              className={`p-2 rounded-lg ${isFavorite ? 'bg-red-100 text-red-600' : 'bg-gray-100'}`}
-            >
-              <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
-            </button>
-            <button className="p-2 rounded-lg bg-gray-100">
-              <Share2 className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Link to="/" className="text-primary hover:underline mb-4 inline-block">
+        ← Retour aux résultats
+      </Link>
 
-        <div className="flex gap-4 flex-wrap">
-          <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm">
-            {hebergement.type}
+      <h1 className="text-3xl font-bold mb-2">{hebergement.nom}</h1>
+      <div className="flex items-center gap-2 text-gray-600 mb-6">
+        <span className="bg-gray-100 px-3 py-1 rounded-full text-sm font-semibold">
+          {hebergement.type}
+        </span>
+        {hebergement.classification && (
+          <span className="text-yellow-500">
+            {'★'.repeat(hebergement.classification)}
           </span>
-          {hebergement.classement && (
-            <div className="flex items-center gap-1">
-              {'⭐'.repeat(parseInt(hebergement.classement))}
-            </div>
-          )}
-          {hebergement.capacite && (
-            <span className="bg-gray-100 px-3 py-1 rounded-full text-sm">
-              {hebergement.capacite} personnes
-            </span>
-          )}
-        </div>
+        )}
+        <span>•</span>
+        <span>{hebergement.localisation.commune}, {hebergement.localisation.region}</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
+      <div className="aspect-video bg-gray-200 rounded-xl mb-8 flex items-center justify-center">
+        <svg className="w-24 h-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          {/* Contact */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-4">Contact</h2>
-            <div className="space-y-3">
-              {hebergement.telephone && (
-                <a href={`tel:${hebergement.telephone}`} className="flex items-center gap-3 text-gray-700 hover:text-primary-600">
-                  <Phone className="w-5 h-5" />
-                  {hebergement.telephone}
-                </a>
-              )}
-              {hebergement.email && (
-                <a href={`mailto:${hebergement.email}`} className="flex items-center gap-3 text-gray-700 hover:text-primary-600">
-                  <Mail className="w-5 h-5" />
-                  {hebergement.email}
-                </a>
-              )}
-              {hebergement.url && (
-                <a href={hebergement.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-gray-700 hover:text-primary-600">
-                  <Globe className="w-5 h-5" />
-                  Site web
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Map */}
-          {hebergement.latitude && hebergement.longitude && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">Localisation</h2>
-              <MapContainer
-                center={[hebergement.latitude, hebergement.longitude]}
-                zoom={13}
-                className="h-64 rounded-lg"
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <Marker position={[hebergement.latitude, hebergement.longitude]} />
-              </MapContainer>
-            </div>
-          )}
+          <LocationSection location={hebergement.localisation} />
+          <CapacitySection capacity={hebergement.capacite} />
+          <AmenitiesSection amenities={hebergement.equipements} />
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-bold mb-4">Informations</h2>
-            <dl className="space-y-3">
-              <div>
-                <dt className="text-sm text-gray-500">Région</dt>
-                <dd className="font-medium">{hebergement.region}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-gray-500">Département</dt>
-                <dd className="font-medium">{hebergement.departement}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-gray-500">Source</dt>
-                <dd className="font-medium">{hebergement.source}</dd>
-              </div>
-            </dl>
-          </div>
+        <div className="lg:col-span-1">
+          <ContactSection contact={hebergement.contact} />
         </div>
       </div>
+
+      <MetadataSection metadata={hebergement.metadata} />
     </div>
   )
 }
+
+export default AccommodationPage
