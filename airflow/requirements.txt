@@ -1,7 +1,8 @@
 # ============================================
 # Airflow - Requirements Python
 # ============================================
-
+#images mongo
+duckduckgo-search==8.1.1
 # HTTP requests pour data.gouv.fr et APIs disponibilités
 requests==2.31.0
 

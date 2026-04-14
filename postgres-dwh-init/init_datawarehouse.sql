@@ -34,13 +34,15 @@ CREATE TABLE dim_hebergement (
 -- DIM: Localisation
 CREATE TABLE dim_localisation (
     localisation_id SERIAL PRIMARY KEY,
+    adresse_rue TEXT NOT NULL,
     code_postal VARCHAR(10),
     commune VARCHAR(255),
     departement_code VARCHAR(10),
     region VARCHAR(255),
     latitude NUMERIC(10, 7),
     longitude NUMERIC(10, 7),
-    UNIQUE(code_postal, commune) -- Évite les doublons géographiques
+   
+   CONSTRAINT unique_adresse UNIQUE (adresse_rue, code_postal, commune)-- Évite les doublons géographiques
 );
 
 -- DIM: Date (Smart Keys de type YYYYMMDD pour des requêtes BI ultra-rapides)
@@ -129,3 +131,4 @@ FROM (
     SELECT generate_series('2020-01-01'::DATE, '2030-12-31'::DATE, '1 day'::INTERVAL) AS datum
 ) dates
 ON CONFLICT (date_id) DO NOTHING;
+

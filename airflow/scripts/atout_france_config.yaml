@@ -17,7 +17,6 @@ validation:
     - "Adresse"
     - "Code postal"
     - "Commune"
-    # Note: On peut lister les 20 champs ici pour la validation stricte
 
 execution:
   timeout_seconds: 300
