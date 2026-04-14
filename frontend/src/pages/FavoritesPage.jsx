@@ -1,18 +1,57 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { favoriteService } from '../services/favorite.service'
 
 const FavoritesPage = () => {
   const { user } = useAuth()
   const [favorites, setFavorites] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Charger les favoris depuis le localStorage
-    const storedFavorites = localStorage.getItem(`favorites_${user?.email}`)
-    if (storedFavorites) {
-      setFavorites(JSON.parse(storedFavorites))
+    loadFavorites()
+  }, [])
+
+  async function loadFavorites() {
+    try {
+      setLoading(true)
+      const data = await favoriteService.getAll()
+      setFavorites(data)
+      setError(null)
+    } catch (err) {
+      setError(err.message || 'Erreur lors du chargement des favoris')
+    } finally {
+      setLoading(false)
     }
-  }, [user])
+  }
+
+  async function removeFavorite(hebergementId) {
+    try {
+      await favoriteService.remove(hebergementId)
+      setFavorites(favorites.filter(fav => fav.hebergement._id !== hebergementId))
+    } catch (err) {
+      console.error('Erreur lors de la suppression du favori:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -31,23 +70,38 @@ const FavoritesPage = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {favorites.map(fav => (
-            <Link
-              key={fav._id}
-              to={`/hebergement/${fav._id}`}
-              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition"
-            >
-              <div className="aspect-square bg-gray-200 flex items-center justify-center">
-                <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <div key={fav._id} className="relative group">
+              <Link
+                to={`/hebergement/${fav.hebergement._id}`}
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition block"
+              >
+                <div className="aspect-square bg-gray-200 relative overflow-hidden">
+                  <img
+                    src={fav.hebergement.image_cover}
+                    alt={fav.hebergement.nom}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg truncate">{fav.hebergement.nom}</h3>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {fav.hebergement.localisation.commune}, {fav.hebergement.localisation.region}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Ajouté le {new Date(fav.addedAt).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              </Link>
+              <button
+                onClick={() => removeFavorite(fav.hebergement._id)}
+                className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-red-50 transition"
+                title="Retirer des favoris"
+              >
+                <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-lg truncate">{fav.nom}</h3>
-                <p className="text-gray-600 text-sm mt-1">
-                  {fav.localisation.commune}, {fav.localisation.region}
-                </p>
-              </div>
-            </Link>
+              </button>
+            </div>
           ))}
         </div>
       )}

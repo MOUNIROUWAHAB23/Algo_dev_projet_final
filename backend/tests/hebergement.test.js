@@ -55,7 +55,10 @@ describe('Hebergement Routes', () => {
       hebergementModel.find.mockReturnValue({
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([])
+        exec: jest.fn().mockResolvedValue([
+      { _id: "1", nom: "Hôtel Paris Luxe", type: "Hôtel" },
+      { _id: "2", nom: "Appartement Paris Centre", type: "Appartement" }
+    ])
       });
 
       const res = await request(app).get('/api/hebergement/?region=ile');
@@ -72,7 +75,10 @@ describe('Hebergement Routes', () => {
       hebergementModel.find.mockReturnValue({
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([])
+        exec: jest.fn().mockResolvedValue([
+      { _id: "1", nom: "Hôtel Paris Luxe", type: "Hôtel" },
+      { _id: "2", nom: "Appartement Paris Centre", type: "Appartement" }
+    ])
       });
 
       const res = await request(app).get('/api/hebergement/?classification=4');
@@ -89,7 +95,10 @@ describe('Hebergement Routes', () => {
       hebergementModel.find.mockReturnValue({
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([])
+        exec: jest.fn().mockResolvedValue([
+      { _id: "1", nom: "Hôtel Paris Luxe", type: "Hôtel" },
+      { _id: "2", nom: "Appartement Paris Centre", type: "Appartement" }
+    ])
       });
 
       const res = await request(app).get('/api/hebergement/?lat=48.85&long=2.35&radius=10');

@@ -80,11 +80,10 @@ describe('User Routes', () => {
       });
 
       const res = await request(app)
-        .post('/api/users/getuser')
-        .set('Authorization', `Bearer ${token}`)
-        .send({ id: '123456' });
+        .post('/api/users/getuser?id=123456')
+        .set('Authorization', `Bearer ${token}`);
 
-      expect(res.statusCode).toBe(200);
+      expect(res.status).toBe(200);
       expect(res.body.code).toBe('200');
       expect(res.body.data).toEqual({
         id: mockUser._id,
@@ -107,8 +106,8 @@ describe('User Routes', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({});
 
-      expect(res.statusCode).toBe(400);
-      expect(res.body.message).toContain('required');
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toContain('not found');
     });
 
     it('should return 500 on server error', async () => {

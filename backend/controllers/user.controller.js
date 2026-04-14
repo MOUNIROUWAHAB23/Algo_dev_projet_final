@@ -5,13 +5,6 @@ export async function getUser(req, res) {
         const { id } = req.query;
         const user = await getUserById(id);
 
-        if (!user) {
-            return res.status(404).json({
-                code: '404',
-                message: 'User not found'
-            });
-        }
-
         return res.status(200).json({
             code: '200',
             data: user

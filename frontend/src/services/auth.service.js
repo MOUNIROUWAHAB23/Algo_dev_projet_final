@@ -7,12 +7,8 @@ export const authService = {
     if (response.data.code === '200') {
       return {
         success: true,
-        token: response.data.Token,
-        user: {
-          name: response.data.name || email.split('@')[0],
-          email,
-          role: response.data.role || 'USER'
-        }
+        token: response.data.data.token,
+        user: response.data.data.user
       }
     }
     return { success: false, error: response.data.message }

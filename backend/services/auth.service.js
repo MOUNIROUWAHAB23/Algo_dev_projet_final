@@ -11,6 +11,10 @@ const TOKEN_EXPIRATION = '3h';
  * @returns {Promise<Object>} Created user data
  */
 export async function register(userData) {
+    // //Missing email or password
+    if (!userData.email || !userData.password) {
+        throw new Error('Email and password are required');
+    }
     // Validate password length
     if (!userData.password || userData.password.length < PASSWORD_MIN_LENGTH) {
         throw new Error(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`);

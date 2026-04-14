@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 jest.mock('../models/user.model.js');
-
+process.env.JWT_SECRET = 'ma_cle_test_super_secrete';
 describe('Auth Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -33,7 +33,7 @@ describe('Auth Service', () => {
       await expect(register({
         name: 'John',
         email: 'john@example.com'
-      })).rejects.toThrow('Password must be at least 8 characters');
+      })).rejects.toThrow('Email and password are required');
     });
 
     it('should hash password and create user', async () => {
