@@ -9,10 +9,8 @@ const AccommodationCard = memo(({ hebergement }) => {
       className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition group"
     >
       <div className="aspect-square bg-gray-200 relative overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-          <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
+        <div className="absolute inset-0  text-gray-400">
+          <img src={hebergement.image_cover} alt={hebergement.image_cover}  className='h-full w-full' />
         </div>
         <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded-full text-xs font-semibold">
           {hebergement.type}

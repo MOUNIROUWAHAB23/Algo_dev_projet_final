@@ -19,8 +19,8 @@ export const hebergementService = {
 
   async findById(id) {
     const response = await api.get(`/hebergement/getById?id=${id}`)
-    return response.data.code === '200' && response.data.data.length > 0
-      ? response.data.data[0]
+    return response.data.code === '200' 
+      ? response.data.data
       : null
   }
 }
