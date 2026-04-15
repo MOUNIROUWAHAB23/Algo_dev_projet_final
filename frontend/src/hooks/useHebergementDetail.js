@@ -12,7 +12,6 @@ export const useHebergementDetail = (id) => {
       setLoading(true)
       try {
         const data = await hebergementService.findById(id)
-        console.log(data)
         if (data) {
           setHebergement(data)
         } else {

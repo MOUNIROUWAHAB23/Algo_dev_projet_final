@@ -1,4 +1,4 @@
-// SRP : Ce service gère uniquement la logique métier des favoris
+ 
 import api from '../api/axios'
 
 export const favoriteService = {
