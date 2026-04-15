@@ -12,11 +12,11 @@ export const useAuth = () => {
 }
 
 // DIP : AuthProvider dépend de l'abstraction useAuthLogic, pas de l'implémentation directe
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children, value }) => {
   const auth = useAuthLogic()
 
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={value || auth}>
       {children}
     </AuthContext.Provider>
   )

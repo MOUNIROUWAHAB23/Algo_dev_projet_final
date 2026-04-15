@@ -8,38 +8,45 @@ import jwt from 'jsonwebtoken';
 jest.mock('../models/favorite.model.js');
 jest.mock('../models/user.model.js');
 jest.mock('../models/hebergement.model.js');
-jest.mock('../services/auth.service.js', () => ({
-  verifyToken: jest.fn(),
-  findUserById: jest.fn()
-}));
-
-import { verifyToken, findUserById } from '../services/auth.service.js';
 
 describe('Favorite Routes', () => {
   let authToken;
   const mockUserId = '64a1234567890abcdef12345';
   const mockHebergementId = '64b1234567890abcdef12345';
+  const mockUser = {
+    _id: mockUserId,
+    id: mockUserId,
+    email: 'test@example.com',
+    name: 'Test User',
+    role: 'USER'
+  };
+
+  const generateToken = (payload = {}) => {
+    return jwt.sign(
+      {
+        id: mockUserId,
+        email: 'test@example.com',
+        ...payload
+      },
+      process.env.JWT_SECRET || 'test-secret',
+      { expiresIn: '1h' }
+    );
+  };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
 
-    // Generate a mock JWT token
-    authToken = jwt.sign({ id: mockUserId, email: 'test@example.com' }, process.env.JWT_SECRET || 'test-secret');
+    // Generate a real JWT token for tests
+    authToken = generateToken();
 
-    // Mock auth service functions
-
-
+    // Mock userModel.findById because it's called by auth middleware (loadUser)
+    userModel.findById = jest.fn(() => ({
+      exec: jest.fn().mockResolvedValue(mockUser)
+    }));
   });
 
   describe('POST /api/favorites/', () => {
     it('should return 400 if hebergementId is missing', async () => {
-      // verifyToken.mockReturnValue({ id: mockUserId, email: 'test@example.com' });
-      // findUserById.mockResolvedValue({
-      //   _id: mockUserId,
-      //   email: 'test@example.com',
-      //   name: 'Test User',
-      //   role: 'USER'
-      // });
       const res = await request(app)
         .post('/api/favorites/')
         .set('Authorization', `Bearer ${authToken}`)
@@ -55,10 +62,13 @@ describe('Favorite Routes', () => {
         _id: '64c1234567890abcdef12345',
         user: mockUserId,
         hebergement: mockHebergementId,
-        addedAt: new Date()
+        addedAt: new Date().toISOString()
       };
 
-      favoriteModel.create = jest.fn().mockResolvedValue(mockFavorite);
+      favoriteModel.create = jest.fn().mockResolvedValue({
+        ...mockFavorite,
+        addedAt: new Date(mockFavorite.addedAt) // Service/Model might return a Date object
+      });
 
       const res = await request(app)
         .post('/api/favorites/')
@@ -93,22 +103,36 @@ describe('Favorite Routes', () => {
 
       expect(res.statusCode).toBe(401);
     });
+
+    it('should return 401 if token is invalid', async () => {
+      const invalidToken = 'invalid-token';
+      const res = await request(app)
+        .post('/api/favorites/')
+        .set('Authorization', `Bearer ${invalidToken}`)
+        .send({ hebergementId: mockHebergementId });
+
+      expect(res.statusCode).toBe(401);
+    });
   });
 
   describe('GET /api/favorites/', () => {
     it('should return all favorites for the user', async () => {
+      const addedAt = new Date().toISOString();
       const mockFavorites = [
         {
           _id: '64c1234567890abcdef12345',
           user: mockUserId,
           hebergement: { _id: mockHebergementId, nom: 'Test Hebergement' },
-          addedAt: new Date()
+          addedAt: addedAt
         }
       ];
 
       favoriteModel.find = jest.fn(() => ({
         populate: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue(mockFavorites)
+        exec: jest.fn().mockResolvedValue(mockFavorites.map(f => ({
+          ...f,
+          addedAt: new Date(f.addedAt)
+        })))
       }));
 
       const res = await request(app)
@@ -133,6 +157,13 @@ describe('Favorite Routes', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.code).toBe('200');
       expect(res.body.data).toEqual([]);
+    });
+
+    it('should return 401 if not authenticated', async () => {
+      const res = await request(app)
+        .get('/api/favorites/');
+
+      expect(res.statusCode).toBe(401);
     });
   });
 
@@ -163,6 +194,13 @@ describe('Favorite Routes', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.code).toBe('200');
       expect(res.body.data.isFavorite).toBe(false);
+    });
+
+    it('should return 401 if not authenticated', async () => {
+      const res = await request(app)
+        .get(`/api/favorites/check/${mockHebergementId}`);
+
+      expect(res.statusCode).toBe(401);
     });
   });
 
