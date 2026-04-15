@@ -8,7 +8,7 @@ import AccommodationPage from './pages/AccommodationPage'
 import FavoritesPage from './pages/FavoritesPage'
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
-
+import NearbySearchPage from './pages/NearbySearchPage';
 function App() {
   return (
     <AuthProvider>
@@ -25,6 +25,8 @@ function App() {
                 <FavoritesPage />
               </ProtectedRoute>
             } />
+            <Route path="/carte" element={<NearbySearchPage />} />
+            
             <Route path="/admin" element={
               <ProtectedRoute requireAdmin>
                 <AdminPage />

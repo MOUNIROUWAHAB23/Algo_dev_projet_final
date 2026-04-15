@@ -21,4 +21,31 @@ api.interceptors.request.use(
   }
 )
 
+export const hebergementApi = {
+  // US 15 : Carte globale
+  fetchMapData: async () => {
+    try {
+      const response = await api.get('/hebergement?isMapView=true');
+      return response.data.data;
+    } catch (error) {
+      console.error("Erreur fetchMapData:", error);
+      return [];
+    }
+  },
+
+  // US 16 : Rayon géolocalisé
+  fetchNearby: async (lat, lng, radius, limit = 50) => {
+    try {
+      const response = await api.get(`/hebergement?lat=${lat}&lng=${lng}&radius=${radius}&limit=${limit}`);
+      return response.data.data;
+    } catch (error) {
+      if (error.response && error.response.status === 404) return [];
+      console.error("Erreur fetchNearby:", error);
+      throw error;
+    }
+  }
+};
+
+
+
 export default api
