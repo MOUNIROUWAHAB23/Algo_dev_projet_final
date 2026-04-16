@@ -3,6 +3,8 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger.json' with { type: 'json' };
 
 import user from './routes/user.route.js';
 import auth from './routes/auth.route.js';
@@ -26,5 +28,8 @@ app.use('/api/auth/',auth)
 app.use('/api/users/',user)
 app.use('/api/hebergement/',hebergement)
 app.use('/api/favorites/',favorite)
+
+// Swagger UI documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 export default app

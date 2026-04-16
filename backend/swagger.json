@@ -1,0 +1,984 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API Hebergement",
+    "description": "API de gestion des hébergements touristiques avec authentification et favoris",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3500/api",
+      "description": "Serveur de développement"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Endpoints d'authentification (inscription, connexion)"
+    },
+    {
+      "name": "Users",
+      "description": "Gestion des utilisateurs"
+    },
+    {
+      "name": "Hebergements",
+      "description": "Recherche et consultation des hébergements touristiques"
+    },
+    {
+      "name": "Favorites",
+      "description": "Gestion des favoris (nécessite authentification)"
+    }
+  ],
+  "paths": {
+    "/auth/sign-up": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Inscrire un nouvel utilisateur",
+        "description": "Crée un nouveau compte utilisateur avec email et mot de passe",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "monMotDePasse123"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["USER", "ADMIN"],
+                    "default": "USER"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Utilisateur créé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Données invalides (email/password manquant ou password trop court)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sign-in": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Authentifier un utilisateur",
+        "description": "Connecte un utilisateur et retourne un token JWT",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "monMotDePasse123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentification réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Email ou mot de passe invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/getuser": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Récupérer les informations d'un utilisateur",
+        "description": "Retourne les informations d'un utilisateur par son ID. Nécessite un token JWT valide.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de l'utilisateur (ObjectId MongoDB)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Informations utilisateur récupérées avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID manquant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hebergement/": {
+      "get": {
+        "tags": ["Hebergements"],
+        "summary": "Rechercher des hébergements",
+        "description": "Retourne une liste paginée d'hébergements avec filtres optionnels. Supporte la recherche textuelle, filtres par type/région/classification, et recherche géolocalisée.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Recherche textuelle (nom, commune, région)"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["HOTEL", "CAMPING", "RESIDENCE", "AUBERGE", "VILLAGE"]
+            },
+            "description": "Filtrer par type d'hébergement"
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrer par région"
+          },
+          {
+            "name": "classification",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "description": "Filtrer par classification (nombre d'étoiles)"
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Latitude pour recherche géolocalisée"
+          },
+          {
+            "name": "long",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Longitude pour recherche géolocalisée"
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            },
+            "description": "Rayon de recherche en kilomètres (avec lat/long)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1
+            },
+            "description": "Nombre d'éléments par page"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "description": "Numéro de page"
+          },
+          {
+            "name": "isMapView",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Si true, retourne tous les résultats sans pagination pour affichage carte (données allégées)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des hébergements récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HebergementListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Paramètres invalides",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Aucun hébergement trouvé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hebergement/getById": {
+      "get": {
+        "tags": ["Hebergements"],
+        "summary": "Récupérer un hébergement par ID",
+        "description": "Retourne les détails complets d'un hébergement spécifique",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de l'hébergement (ObjectId MongoDB)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails de l'hébergement récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HebergementResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID manquant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Hébergement non trouvé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favorites/": {
+      "post": {
+        "tags": ["Favorites"],
+        "summary": "Ajouter un hébergement aux favoris",
+        "description": "Ajoute un hébergement à la liste des favoris de l'utilisateur authentifié",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["hebergementId"],
+                "properties": {
+                  "hebergementId": {
+                    "type": "string",
+                    "description": "ID de l'hébergement à ajouter en favori"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Favori ajouté avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID d'hébergement manquant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Cet hébergement est déjà dans les favoris",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Favorites"],
+        "summary": "Récupérer tous les favoris de l'utilisateur",
+        "description": "Retourne la liste complète des hébergements favoris de l'utilisateur authentifié",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Liste des favoris récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoritesListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favorites/{hebergementId}": {
+      "delete": {
+        "tags": ["Favorites"],
+        "summary": "Supprimer un favori",
+        "description": "Retire un hébergement de la liste des favoris de l'utilisateur",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "hebergementId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de l'hébergement à retirer des favoris"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Favori supprimé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID d'hébergement manquant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Favori non trouvé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favorites/check/{hebergementId}": {
+      "get": {
+        "tags": ["Favorites"],
+        "summary": "Vérifier si un hébergement est en favori",
+        "description": "Vérifie si un hébergement spécifique est dans les favoris de l'utilisateur authentifié",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "hebergementId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de l'hébergement à vérifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statut du favori récupéré avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckFavoriteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID d'hébergement manquant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT obtenu après authentification via /auth/sign-in"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "ID MongoDB de l'utilisateur"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "john@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["USER", "ADMIN"],
+            "example": "USER"
+          },
+          "isVerified": {
+            "type": "boolean",
+            "example": false
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "message": {
+            "type": "string",
+            "example": "Authentication successful"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "Token JWT valide pour 3 heures"
+              },
+              "user": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        }
+      },
+      "Hebergement": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "ID MongoDB de l'hébergement"
+          },
+          "hash_record": {
+            "type": "string"
+          },
+          "nom": {
+            "type": "string",
+            "example": "Hôtel de Paris"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["HOTEL", "CAMPING", "RESIDENCE", "AUBERGE", "VILLAGE"],
+            "example": "HOTEL"
+          },
+          "capacite": {
+            "type": "object",
+            "properties": {
+              "chambres": {
+                "type": "number",
+                "nullable": true
+              },
+              "lits": {
+                "type": "number"
+              }
+            }
+          },
+          "classification": {
+            "type": "number",
+            "nullable": true,
+            "example": 4
+          },
+          "contact": {
+            "type": "object",
+            "properties": {
+              "telephone": {"type": "string", "nullable": true},
+              "email": {"type": "string", "nullable": true, "format": "email"},
+              "site_web": {"type": "string", "nullable": true}
+            }
+          },
+          "equipements": {
+            "type": "array",
+            "items": {"type": "object"}
+          },
+          "identifiant_atout": {
+            "type": "string",
+            "nullable": true
+          },
+          "localisation": {
+            "type": "object",
+            "properties": {
+              "adresse": {"type": "string"},
+              "code_postal": {"type": "string"},
+              "commune": {"type": "string"},
+              "departement": {"type": "string"},
+              "region": {"type": "string"},
+              "coordinates": {
+                "type": "object",
+                "properties": {
+                  "type": {"type": "string", "enum": ["Point"]},
+                  "coordinates": {"type": "array", "items": {"type": "number"}}
+                }
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "date_classement": {"type": "string", "format": "date-time"},
+              "imported_at": {"type": "string", "format": "date-time"}
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HebergementResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Hebergement"
+          }
+        }
+      },
+      "HebergementListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Hebergement"
+            }
+          }
+        }
+      },
+      "Favorite": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string",
+            "description": "ID de l'utilisateur"
+          },
+          "hebergement": {
+            "$ref": "#/components/schemas/Hebergement"
+          },
+          "addedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FavoriteResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "201"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Favorite"
+          }
+        }
+      },
+      "FavoritesListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Favorite"
+            }
+          }
+        }
+      },
+      "CheckFavoriteResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "isFavorite": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "SuccessMessage": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "200"
+          },
+          "message": {
+            "type": "string",
+            "example": "Favorite removed successfully"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "400"
+          },
+          "message": {
+            "type": "string",
+            "description": "Description de l'erreur"
+          }
+        }
+      }
+    }
+  }
+}
