@@ -4,6 +4,7 @@ import { useHebergements } from '../hooks/useHebergements'
 import FilterPanel from '../components/hebergement/FilterPanel'
 import AccommodationCard from '../components/hebergement/AccommodationCard'
 import Pagination from '../components/hebergement/Pagination'
+import MapSection from "../components/map/MapSection";
 
 const INITIAL_FILTERS = {
   q: '',
@@ -46,7 +47,7 @@ const HomePage = () => {
         onApply={applyFilters}
         onClear={clearFilters}
       />
-
+      <MapSection filters={filters} />
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
