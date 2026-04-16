@@ -19,7 +19,7 @@ cd frontend
 2. **Installer les dépendances**
 
 ```bash
-npm install
+npm install / npm install --legacy-peer-deps (pour forcer)
 ```
 
 3. **Configurer le proxy API**
