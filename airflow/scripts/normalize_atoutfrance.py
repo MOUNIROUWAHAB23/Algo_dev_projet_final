@@ -38,7 +38,7 @@ logger = get_logger("NormalizeAtoutFrance")
 # 2. DOMAINE : Règles de Nettoyage (Pure Functions)
 # ============================================
 class DataCleaner:
-    """Responsabilité : Opérations atomiques de nettoyage de données."""
+    """Responsabilité : Opérations de nettoyage de données."""
     
     @staticmethod
     def remove_accents(input_str: Any) -> str:
