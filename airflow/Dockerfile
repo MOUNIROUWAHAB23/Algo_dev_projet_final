@@ -21,7 +21,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copier les DAGs, plugins et scripts
 COPY dags/ ./dags/
-COPY plugins/ ./plugins/
 COPY scripts/ ./scripts/
 
 # Variables d'environnement
