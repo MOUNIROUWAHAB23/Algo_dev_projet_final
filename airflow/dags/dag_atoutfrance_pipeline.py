@@ -30,7 +30,7 @@ def validate_downloaded_file():
     print(f"Validation réussie : {latest_file} prêt pour la normalisation.")
 
 with DAG(
-    'dag_atoutfrance_daily_pipeline', # Nouveau nom demandé dans la US
+    'dag_atoutfrance_daily_pipeline', 
     default_args=default_args,
     description='Pipeline Quotidien Production : Extraction, Validation, Normalisation, QA, Chargement et Archivage',
     schedule_interval='30 4 * * *', # 04:30 UTC
